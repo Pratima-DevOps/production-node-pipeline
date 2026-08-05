@@ -1,0 +1,13 @@
+FROM node:20-alpine AS builder
+WORKDIR /usr/src/app
+COPY App/package*.json ./
+RUN npm ci --only=production
+
+FROM node:20-alpine
+WORKDIR /usr/src/app
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY App/ .
+
+EXPOSE 3000
+USER node
+CMD ["node", "server.js"]
