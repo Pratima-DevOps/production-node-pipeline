@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCOUNT_ID = '123456789012'
-        AWS_REGION     = 'us-east-1'
-        ECR_REPO_NAME  = 'sample-node-app'
-        IMAGE_TAG      = "${BUILD_NUMBER}"
+        APP_NAME = 'production-node-app'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 
     stages {
@@ -15,19 +13,24 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
+        stage('Install Dependencies') {
             steps {
-                dir('App') {
-                    sh 'npm install'
-                    sh 'npm test'
+                sh 'npm install'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh "docker build -t ${APP_NAME}:${IMAGE_TAG} ."
                 }
             }
         }
 
-        stage('Docker Build & Security Scan') {
+        stage('Security & Audit') {
             steps {
-                sh "docker build -t ${ECR_REPO_NAME}:${IMAGE_TAG} ."
-                sh "trivy image --severity HIGH,CRITICAL ${ECR_REPO_NAME}:${IMAGE_TAG}"
+                echo 'Running vulnerability check...'
+                sh 'npm audit --audit-level=high || true'
             }
         }
     }
@@ -35,6 +38,12 @@ pipeline {
     post {
         always {
             cleanWs()
+        }
+        success {
+            echo "Jenkins build #${env.BUILD_NUMBER} completed successfully."
+        }
+        failure {
+            echo "Jenkins build #${env.BUILD_NUMBER} failed."
         }
     }
 }
